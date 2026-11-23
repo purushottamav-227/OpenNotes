@@ -1,0 +1,266 @@
+
+.admin-dashboard {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px;
+  color: var(--text-primary, #f5f5f5);
+}
+
+.admin-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 30px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 20px;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(212, 175, 55, 0.15),
+      transparent 45%
+    ),
+    var(--bg-secondary, #151515);
+}
+
+.admin-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d4af37;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+
+.admin-welcome h1 {
+  margin: 15px 0 10px;
+  font-size: clamp(1.65rem, 3vw, 2.4rem);
+  line-height: 1.2;
+}
+
+.admin-welcome p,
+.admin-section-heading p,
+.admin-stat-card p,
+.admin-action-card p,
+.admin-notice p {
+  margin: 0;
+  color: var(--text-secondary, #a7a7a7);
+  line-height: 1.6;
+}
+
+.admin-welcome-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  color: #d4af37;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 20px;
+  background: rgba(212, 175, 55, 0.08);
+}
+
+.admin-section {
+  margin-top: 34px;
+}
+
+.admin-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.admin-section-heading h2 {
+  margin: 0 0 6px;
+  font-size: 1.25rem;
+}
+
+.admin-section-heading p {
+  font-size: 0.9rem;
+}
+
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-stat-card,
+.admin-action-card {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--border-color, #303030);
+  border-radius: 16px;
+  background: var(--bg-secondary, #151515);
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.admin-stat-card:hover,
+.admin-action-card:hover {
+  border-color: rgba(212, 175, 55, 0.55);
+  transform: translateY(-2px);
+}
+
+.admin-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-secondary, #a7a7a7);
+  font-size: 0.86rem;
+}
+
+.admin-stat-icon,
+.admin-action-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #d4af37;
+  background: rgba(212, 175, 55, 0.1);
+  border-radius: 12px;
+}
+
+.admin-stat-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.admin-stat-card > strong {
+  display: block;
+  margin: 20px 0 8px;
+  font-size: 2rem;
+  color: var(--text-primary, #f5f5f5);
+}
+
+.admin-stat-card p {
+  font-size: 0.83rem;
+}
+
+.admin-data-note {
+  margin: 12px 0 0;
+  color: var(--text-secondary, #a7a7a7);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.admin-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-action-icon {
+  width: 48px;
+  height: 48px;
+}
+
+.admin-action-card h3 {
+  margin: 18px 0 8px;
+  font-size: 1.05rem;
+}
+
+.admin-action-card p {
+  min-height: 52px;
+  font-size: 0.88rem;
+}
+
+.admin-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: #d4af37;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-action-link:hover {
+  color: #f0d777;
+}
+
+.admin-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 28px;
+  padding: 22px;
+  color: #d4af37;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 16px;
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.admin-notice > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.admin-notice h3 {
+  margin: 0 0 6px;
+  color: var(--text-primary, #f5f5f5);
+  font-size: 1rem;
+}
+
+.admin-notice p {
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1100px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-dashboard {
+    padding: 18px;
+  }
+
+  .admin-welcome {
+    padding: 22px;
+  }
+
+  .admin-welcome-icon {
+    width: 54px;
+    height: 54px;
+  }
+
+  .admin-stats-grid,
+  .admin-actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-stat-card,
+  .admin-action-card {
+    padding: 20px;
+  }
+
+  .admin-action-card p {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-dashboard {
+    padding: 12px;
+  }
+
+  .admin-welcome {
+    padding: 18px;
+  }
+
+  .admin-welcome-icon {
+    display: none;
+  }
+}

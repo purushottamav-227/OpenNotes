@@ -1,0 +1,114 @@
+.college-picker {
+  position: relative;
+  width: 100%;
+}
+
+.college-picker-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid #343434;
+  border-radius: 10px;
+  background: #101010;
+  color: #8d8d8d;
+}
+
+.college-picker-input:focus-within {
+  border-color: #d6ad55;
+}
+
+.college-picker-input input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+}
+
+.college-picker-results {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 6px;
+  border: 1px solid #2b2b2b;
+  border-radius: 10px;
+  background: #121212;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.college-picker-results button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #f2f2f2;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.college-picker-results button:hover,
+.college-picker-results button:focus-visible {
+  background: #1d1d1d;
+  outline: 0;
+}
+
+.college-picker-results small {
+  color: #8d8d8d;
+  font-size: 12px;
+}
+
+.college-picker-note {
+  margin: 8px 2px 0;
+  color: #8d8d8d;
+  font-size: 12px;
+}
+
+.college-picker-error {
+  color: #ff8a8a;
+}
+
+.college-picker-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid #d6ad55;
+  border-radius: 10px;
+  background: rgba(214, 173, 85, 0.08);
+  color: #f0d58e;
+  font-size: 14px;
+}
+
+.college-picker-selected span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.college-picker-selected button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.college-picker-selected button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}

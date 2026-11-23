@@ -1,0 +1,66 @@
+
+.opennotes-logo {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  width: fit-content !important;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 !important;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #101010 !important;
+  color: #ffffff !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 30px;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  letter-spacing: -1px;
+  text-decoration: none !important;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.opennotes-logo .opennotes-logo-open,
+.opennotes-logo .opennotes-logo-notes {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0.12em 0.12em 0.12em 0.15em !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: inherit !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  letter-spacing: inherit !important;
+  text-decoration: none !important;
+}
+
+.opennotes-logo .opennotes-logo-open {
+  background: #101010 !important;
+  color: #ffffff !important;
+  
+}
+
+.opennotes-logo .opennotes-logo-notes {
+  background: #f2b900 !important;
+  color: #000000 !important;
+}
+
+.login-logo {
+  font-size: 30px;
+}
+
+.login-mobile-brand .opennotes-logo {
+  font-size: 23px;
+}
+
+@media (max-width: 480px) {
+  .login-logo {
+    font-size: 23px;
+  }
+}

@@ -1,0 +1,449 @@
+
+.signup-page {
+  --signup-gold: #d6ad55;
+  --signup-gold-light: #f0d58e;
+  --signup-border: rgba(214, 173, 85, 0.2);
+  --signup-muted: #a5a5a5;
+
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1fr);
+  background: #0b0b0b;
+  color: #f5f5f5;
+}
+
+.signup-aside {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(28px, 5vw, 65px);
+  border-right: 1px solid var(--signup-border);
+  background:
+    radial-gradient(ellipse at 20% 25%, rgba(214, 173, 85, 0.12), transparent 50%),
+    linear-gradient(145deg, #15130f, #0b0b0b 75%);
+}
+
+/* Shared CSS-only logo */
+.signup-brand,
+.signup-mobile-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  width: fit-content;
+  max-width: 100%;
+  color: #fff;
+  text-decoration: none;
+}
+
+.signup-brand {
+  margin-bottom: 24px;
+}
+
+.signup-mobile-brand {
+  display: none;
+  margin-bottom: 32px;
+}
+
+.signup-brand .opennotes-logo,
+.signup-mobile-brand .opennotes-logo {
+  display: inline-flex !important;
+  flex-shrink: 0;
+  align-items: stretch;
+  font-size: 30px !important;
+}
+
+.signup-brand .opennotes-logo-open,
+.signup-mobile-brand .opennotes-logo-open {
+  color: #fff !important;
+  background: #101010 !important;
+}
+
+.signup-brand .opennotes-logo-notes,
+.signup-mobile-brand .opennotes-logo-notes {
+  color: #fff !important;
+  background: #f2b900 !important;
+}
+
+/* Hide any leftover image-based logo */
+.signup-brand img,
+.signup-mobile-brand img {
+  display: none !important;
+}
+
+.signup-aside-content {
+  max-width: 500px;
+  margin: 55px auto;
+}
+
+.signup-eyebrow {
+  color: var(--signup-gold);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.signup-aside-content h1 {
+  margin: 20px 0;
+  font-size: clamp(42px, 5vw, 65px);
+  line-height: 1.08;
+  letter-spacing: -2px;
+}
+
+.signup-aside-content h1 span {
+  color: var(--signup-gold);
+}
+
+.signup-aside-content > p {
+  max-width: 410px;
+  color: #b8b8b8;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.signup-benefit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 23px;
+  color: #dedede;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.signup-benefit svg {
+  flex-shrink: 0;
+  color: var(--signup-gold);
+}
+
+.signup-aside-footer {
+  color: #858585;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.signup-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 38px clamp(22px, 5vw, 70px);
+  background: #0c0c0c;
+}
+
+.signup-card {
+  width: 100%;
+  max-width: 440px;
+}
+
+.signup-heading {
+  margin-bottom: 26px;
+}
+
+.signup-heading h2 {
+  margin: 12px 0 8px;
+  font-size: clamp(28px, 3vw, 35px);
+  letter-spacing: -1px;
+}
+
+.signup-heading > p {
+  margin: 0;
+  color: var(--signup-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+}
+
+.signup-field label,
+.signup-role-fieldset legend {
+  display: block;
+  margin-bottom: 8px;
+  color: #e5e5e5;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.signup-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  padding: 0 13px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  outline: none;
+  background: #141414;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.signup-field input::placeholder {
+  color: #747474;
+}
+
+.signup-field input:focus {
+  border-color: var(--signup-gold);
+  box-shadow: 0 0 0 3px rgba(214, 173, 85, 0.1);
+}
+
+.signup-password-wrap {
+  position: relative;
+}
+
+.signup-password-wrap input {
+  padding-right: 45px;
+}
+
+.signup-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--signup-gold);
+  cursor: pointer;
+}
+
+.signup-field-hint {
+  display: block;
+  margin-top: 7px;
+  color: #858585;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.signup-role-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.signup-role-fieldset legend {
+  padding: 0;
+}
+
+.signup-role-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.signup-role-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px 10px;
+  border: 1px solid #333;
+  border-radius: 9px;
+  background: #141414;
+  cursor: pointer;
+}
+
+.signup-role-option.selected {
+  border-color: var(--signup-gold);
+  background: rgba(214, 173, 85, 0.07);
+}
+
+.signup-role-option input {
+  width: 15px;
+  height: 15px;
+  margin: 3px 0 0;
+  accent-color: var(--signup-gold);
+}
+
+.signup-role-option > svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--signup-gold);
+}
+
+.signup-role-option > span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.signup-role-option strong {
+  font-size: 12px;
+}
+
+.signup-role-option small {
+  color: var(--signup-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.signup-approval-note {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--signup-border);
+  border-radius: 7px;
+  background: rgba(214, 173, 85, 0.06);
+  color: #d8c18f;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.signup-terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #b6b6b6;
+  font-size: 11px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.signup-terms input {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin: 1px 0 0;
+  accent-color: var(--signup-gold);
+}
+
+.signup-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--signup-gold);
+  border-radius: 8px;
+  background: var(--signup-gold);
+  color: #17130a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.signup-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--signup-gold-light);
+}
+
+.signup-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.signup-message {
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.signup-error {
+  border: 1px solid rgba(255, 105, 105, 0.3);
+  background: rgba(255, 70, 70, 0.08);
+  color: #ffaaaa;
+}
+
+.signup-success {
+  border: 1px solid rgba(104, 211, 145, 0.3);
+  background: rgba(104, 211, 145, 0.08);
+  color: #8be0aa;
+}
+
+.signup-login-link {
+  margin: 22px 0 0;
+  color: #a6a6a6;
+  font-size: 12px;
+  text-align: center;
+}
+
+.signup-login-link a {
+  color: var(--signup-gold);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.signup-login-link a:hover {
+  text-decoration: underline;
+}
+
+.signup-security-note {
+  margin: 19px 0 0;
+  color: #707070;
+  font-size: 10px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+@media (max-width: 800px) {
+  .signup-page {
+    grid-template-columns: minmax(0, 0.8fr) minmax(390px, 1fr);
+  }
+
+  .signup-aside {
+    padding: 28px;
+  }
+
+  .signup-main {
+    padding: 30px 22px;
+  }
+}
+
+@media (max-width: 680px) {
+  .signup-page {
+    display: block;
+  }
+
+  .signup-aside {
+    display: none;
+  }
+
+  .signup-main {
+    min-height: 100vh;
+    padding: 30px 20px;
+  }
+
+  .signup-card {
+    max-width: 450px;
+  }
+
+  .signup-mobile-brand {
+    display: inline-flex;
+  }
+
+  .signup-mobile-brand .opennotes-logo {
+    font-size: 26px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .signup-role-options {
+    grid-template-columns: 1fr;
+  }
+
+  .signup-brand .opennotes-logo,
+  .signup-mobile-brand .opennotes-logo {
+    font-size: 23px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signup-field input,
+  .signup-submit {
+    transition: none;
+  }
+}

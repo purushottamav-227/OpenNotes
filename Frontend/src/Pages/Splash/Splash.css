@@ -1,0 +1,191 @@
+.splash-page {
+  position: relative;
+
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+
+  background: var(--color-black);
+}
+
+.splash-background-glow {
+  position: absolute;
+
+  width: 500px;
+  height: 500px;
+
+  border-radius: 50%;
+
+  background: rgba(245, 185, 0, 0.08);
+
+  filter: blur(100px);
+
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+.splash-content {
+  position: relative;
+  z-index: 2;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  text-align: center;
+
+  padding: 24px;
+
+  animation: contentReveal 1s ease forwards;
+}
+
+.splash-logo-wrapper {
+  width: min(420px, 80vw);
+
+  margin-bottom: 28px;
+
+  animation: logoReveal 1.2s ease forwards;
+}
+
+.splash-logo {
+  width: 100%;
+  height: auto;
+
+  object-fit: contain;
+
+  filter: drop-shadow(0 0 25px rgba(245, 185, 0, 0.18));
+}
+
+.splash-title {
+  margin-bottom: 12px;
+
+  color: var(--color-white);
+
+  font-size: clamp(2rem, 6vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: 4px;
+}
+
+.splash-title span {
+  color: var(--color-gold);
+}
+
+.splash-slogan {
+  color: var(--color-text-muted);
+
+  font-size: clamp(0.95rem, 2vw, 1.2rem);
+  font-weight: 400;
+
+  line-height: 1.7;
+
+  animation: sloganReveal 1.5s ease forwards;
+}
+
+.splash-loader {
+  width: 120px;
+  height: 3px;
+
+  margin-top: 32px;
+
+  overflow: hidden;
+
+  background: var(--color-border);
+
+  border-radius: 50px;
+}
+
+.splash-loader span {
+  display: block;
+
+  width: 40%;
+  height: 100%;
+
+  background: var(--color-gold);
+
+  border-radius: inherit;
+
+  animation: loading 2s ease-in-out infinite;
+}
+
+/* Animations */
+
+@keyframes contentReveal {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes logoReveal {
+  from {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sloganReveal {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes loading {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .splash-content {
+    padding: 20px;
+  }
+
+  .splash-logo-wrapper {
+    width: min(320px, 82vw);
+    margin-bottom: 22px;
+  }
+
+  .splash-title {
+    letter-spacing: 2px;
+  }
+
+  .splash-slogan {
+    font-size: 0.9rem;
+  }
+}

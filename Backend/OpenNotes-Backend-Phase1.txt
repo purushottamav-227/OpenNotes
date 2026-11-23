@@ -1,0 +1,2319 @@
+
+========== package.json ==========
+{
+  "name": "opennotes-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OpenNotes REST API backend",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "connect-mongo": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.2",
+    "express-session": "^1.19.0",
+    "helmet": "^8.3.0",
+    "jose": "^6.2.14",
+    "mongoose": "^9.11.4",
+    "nodemailer": "^10.3.1",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "passport-google-oauth20": "^2.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.5"
+  }
+}
+
+
+========== src/app.js ==========
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+
+import env from "./config/env.js";
+import healthRoutes from "./routes/health.routes.js";
+import collegeRoutes from "./routes/college.routes.js";
+import authRoutes from "./routes/auth.routes.js";
+
+import {
+  notFoundHandler,
+  errorHandler
+} from "./middleware/error.middleware.js";
+
+const app = express();
+
+app.disable("x-powered-by");
+
+app.use(helmet());
+
+app.use(
+  cors({
+    origin: env.FRONTEND_URL,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+  })
+);
+
+app.use(express.json({ limit: "100kb" }));
+
+app.use("/api/v1", healthRoutes);
+app.use("/api/v1/colleges", collegeRoutes);
+app.use("/api/v1/auth", authRoutes);
+
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+export default app;
+
+========== src/server.js ==========
+import app from "./app.js";
+import env from "./config/env.js";
+import {
+  connectDatabase,
+  disconnectDatabase
+} from "./config/database.js";
+
+let server;
+
+async function startServer() {
+  try {
+    await connectDatabase();
+
+    server = app.listen(env.PORT, () => {
+      console.log(`OpenNotes API listening on port ${env.PORT}`);
+      console.log(`Environment: ${env.NODE_ENV}`);
+    });
+  } catch (error) {
+    console.error("Failed to start OpenNotes API:", error.message);
+    process.exitCode = 1;
+    await disconnectDatabase();
+  }
+}
+
+async function shutdown(signal) {
+  console.log(`${signal} received. Shutting down gracefully.`);
+
+  if (server) {
+    server.close(async (error) => {
+      if (error) {
+        console.error("Error closing HTTP server:", error.message);
+        process.exitCode = 1;
+      }
+
+      try {
+        await disconnectDatabase();
+      } catch (disconnectError) {
+        console.error(
+          "Error closing MongoDB connection:",
+          disconnectError.message
+        );
+        process.exitCode = 1;
+      }
+
+      process.exit();
+    });
+  } else {
+    await disconnectDatabase();
+    process.exit();
+  }
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
+startServer();
+
+========== src/config/env.js ==========
+import "dotenv/config";
+import { z } from "zod";
+
+const envSchema = z.object({
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
+
+  PORT: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(65535)
+    .default(5000),
+
+  FRONTEND_URL: z.url().default("http://localhost:5173"),
+
+  MONGODB_URI: z.string().default(""),
+
+  JWT_SECRET: z.string().min(64).optional(),
+  SESSION_SECRET: z.string().min(32).optional(),
+  // Email configuration
+  EMAIL_HOST: z.string().default("smtp.gmail.com"),
+
+  EMAIL_PORT: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(65535)
+    .default(465),
+
+  EMAIL_SECURE: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+
+  EMAIL_USER: z.email().optional().or(z.literal("")),
+
+  EMAIL_APP_PASSWORD: z.string().default(""),
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: z.string().default(""),
+  GOOGLE_CLIENT_SECRET: z.string().default(""),
+
+  // GitHub OAuth
+  GITHUB_CLIENT_ID: z.string().default(""),
+  GITHUB_CLIENT_SECRET: z.string().default(""),
+
+  // OAuth callback URLs
+  GOOGLE_CALLBACK_URL: z
+    .url()
+    .default("http://localhost:5000/api/v1/auth/google/callback"),
+
+  GITHUB_CALLBACK_URL: z
+    .url()
+    .default("http://localhost:5000/api/v1/auth/github/callback")
+});
+
+const parsedEnv = envSchema.safeParse(process.env);
+
+if (!parsedEnv.success) {
+  console.error("Invalid environment configuration:");
+  console.error(parsedEnv.error.flatten().fieldErrors);
+  process.exit(1);
+}
+
+const env = parsedEnv.data;
+
+if (!env.MONGODB_URI.trim()) {
+  console.warn(
+    "MONGODB_URI is not configured. Database-dependent functionality will be unavailable."
+  );
+}
+
+if (!env.JWT_SECRET) {
+  console.warn(
+    "JWT_SECRET is not configured. Token generation may be unavailable."
+  );
+}
+
+if (!env.EMAIL_USER || !env.EMAIL_APP_PASSWORD) {
+  console.warn(
+    "Email credentials are not configured. Email delivery will be unavailable."
+  );
+}
+
+if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+  console.warn("Google OAuth is not configured.");
+}
+
+if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
+  console.warn("GitHub OAuth is not configured.");
+}
+
+export default env;
+
+========== src/config/database.js ==========
+import mongoose from "mongoose";
+import env from "./env.js";
+
+export async function connectDatabase() {
+  const mongoUri = env.MONGODB_URI.trim();
+
+  if (!mongoUri) {
+    throw new Error("MONGODB_URI is not configured.");
+  }
+
+  await mongoose.connect(mongoUri, {
+    serverSelectionTimeoutMS: 5000
+  });
+
+  console.log("MongoDB connected successfully.");
+}
+
+export async function disconnectDatabase() {
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+  }
+}
+
+export function isDatabaseConnected() {
+  return mongoose.connection.readyState === 1;
+}
+
+========== src/config/session.js ==========
+import session from "express-session";
+import MongoStore from "connect-mongo";
+
+import env from "./env.js";
+
+const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+export function createSessionMiddleware() {
+  if (!env.MONGODB_URI.trim()) {
+    throw new Error(
+      "MONGODB_URI must be configured before session middleware can start."
+    );
+  }
+
+  if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) {
+    throw new Error(
+      "SESSION_SECRET must contain at least 32 characters."
+    );
+  }
+
+  return session({
+    name: "opennotes.sid",
+
+    secret: env.SESSION_SECRET,
+
+    resave: false,
+
+    saveUninitialized: false,
+
+    rolling: true,
+
+    store: MongoStore.create({
+      mongoUrl: env.MONGODB_URI,
+      collectionName: "opennotes_sessions",
+      ttl: SESSION_MAX_AGE_MS / 1000,
+      autoRemove: "native"
+    }),
+
+    cookie: {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_MAX_AGE_MS
+    }
+  });
+}
+
+========== src/config/password.js ==========
+import passport from "passport";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as GitHubStrategy } from "passport-github2";
+
+import env from "./env.js";
+
+/*
+|--------------------------------------------------------------------------
+| GOOGLE OAUTH STRATEGY
+|--------------------------------------------------------------------------
+*/
+
+if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    "google",
+    new GoogleStrategy(
+      {
+        clientID: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+        callbackURL: env.GOOGLE_CALLBACK_URL,
+        scope: ["profile", "email"],
+        state: true
+      },
+      (accessToken, refreshToken, profile, done) => {
+        try {
+          const googleData = profile._json ?? {};
+
+          const email = profile.emails?.find(
+            (entry) => entry.verified === true
+          )?.value;
+
+          const emailVerified = googleData.email_verified === true;
+
+          if (!profile.id || !email || !emailVerified) {
+            return done(null, false, {
+              message:
+                "A verified Google email address is required to sign in."
+            });
+          }
+
+          return done(null, {
+            provider: "google",
+            providerUserId: profile.id,
+            name: profile.displayName?.trim() || "",
+            email: email.trim().toLowerCase(),
+            emailVerified: true
+          });
+        } catch (error) {
+          return done(error);
+        }
+      }
+    )
+  );
+} else {
+  console.warn(
+    "Google OAuth is disabled because its client credentials are not configured."
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| GITHUB OAUTH STRATEGY
+|--------------------------------------------------------------------------
+*/
+
+if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
+  passport.use(
+    "github",
+    new GitHubStrategy(
+      {
+        clientID: env.GITHUB_CLIENT_ID,
+        clientSecret: env.GITHUB_CLIENT_SECRET,
+        callbackURL: env.GITHUB_CALLBACK_URL,
+        scope: ["read:user", "user:email"],
+        state: true
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          if (!profile.id) {
+            return done(null, false, {
+              message: "Unable to identify your GitHub account."
+            });
+          }
+
+          /*
+           * GitHub's profile email may be missing or unverified.
+           * Query its authenticated email endpoint instead.
+           */
+          const response = await fetch(
+            "https://api.github.com/user/emails",
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                Accept: "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "OpenNotes"
+              },
+              signal: AbortSignal.timeout(10000)
+            }
+          );
+
+          if (!response.ok) {
+            return done(
+              new Error(
+                "Unable to verify the email address associated with GitHub."
+              )
+            );
+          }
+
+          const emails = await response.json();
+
+          if (!Array.isArray(emails)) {
+            return done(
+              new Error("GitHub returned an invalid email response.")
+            );
+          }
+
+          const verifiedEmail = emails.find(
+            (entry) =>
+              entry.verified === true && entry.primary === true
+          );
+
+          if (!verifiedEmail?.email) {
+            return done(null, false, {
+              message:
+                "A verified primary GitHub email address is required."
+            });
+          }
+
+          return done(null, {
+            provider: "github",
+            providerUserId: String(profile.id),
+            name:
+              profile.displayName?.trim() ||
+              profile.username?.trim() ||
+              "",
+            email: verifiedEmail.email.trim().toLowerCase(),
+            emailVerified: true
+          });
+        } catch (error) {
+          return done(error);
+        }
+      }
+    )
+  );
+} else {
+  console.warn(
+    "GitHub OAuth is disabled because its client credentials are not configured."
+  );
+}
+
+export default passport;
+
+========== src/controllers/auth.controller.js ==========
+import {
+  registerSchema,
+  loginSchema
+} from "../validators/auth.validator.js";
+
+import {
+  registerUser,
+  loginUser,
+  verifyUserEmail,
+  resendVerificationEmail,
+  requestPasswordReset,
+  resetPassword
+} from "../services/auth.service.js";
+
+import User from "../models/User.js";
+
+export async function registerController(req, res, next) {
+  try {
+    const validation = registerSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid registration details.",
+        errors: validation.error.issues.map((issue) => ({
+          field: issue.path.join("."),
+          message: issue.message
+        }))
+      });
+    }
+
+    const user = await registerUser(validation.data);
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Registration successful. Email verification is required before account activation.",
+      data: user
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function loginController(req, res, next) {
+  try {
+    const validation = loginSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid login details.",
+        errors: validation.error.issues.map((issue) => ({
+          field: issue.path.join("."),
+          message: issue.message
+        }))
+      });
+    }
+
+    const result = await loginUser(validation.data);
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful.",
+      data: result
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getCurrentUserController(req, res, next) {
+  try {
+    const user = await User.findOne({
+      _id: req.auth.userId,
+      isActive: true
+    }).select(
+      "name email role collegeId collegeAffiliationStatus emailVerified teacherApprovalStatus profile authProvider createdAt"
+    );
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Your account is unavailable. Please log in again."
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function verifyEmailController(req, res, next) {
+  try {
+    const { token } = req.body ?? {};
+
+    if (
+      typeof token !== "string" ||
+      token.length !== 64 ||
+      !/^[a-f0-9]{64}$/i.test(token)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid verification token is required."
+      });
+    }
+
+    const result = await verifyUserEmail(token);
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully.",
+      data: result
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+
+export async function resendVerificationEmailController(req, res, next) {
+  try {
+    const email = req.body?.email;
+
+    if (
+      typeof email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid email address."
+      });
+    }
+
+    const result = await resendVerificationEmail({ email });
+
+    return res.status(200).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+
+export async function requestPasswordResetController(req, res, next) {
+  try {
+    const email = req.body?.email;
+
+    if (
+      typeof email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid email address."
+      });
+    }
+
+    const result = await requestPasswordReset({ email });
+
+    return res.status(200).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+
+export async function resetPasswordController(req, res, next) {
+  try {
+    const { token, newPassword } = req.body ?? {};
+
+    if (
+      typeof token !== "string" ||
+      !/^[a-f0-9]{64}$/i.test(token)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid password reset token is required."
+      });
+    }
+
+    if (
+      typeof newPassword !== "string" ||
+      newPassword.length < 12 ||
+      newPassword.length > 128
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must contain between 12 and 128 characters."
+      });
+    }
+
+    const result = await resetPassword({
+      token,
+      newPassword
+    });
+
+    return res.status(200).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+
+
+========== src/services/auth.service.js ==========
+import User from "../models/User.js";
+import College from "../models/College.js";
+import { hashPassword } from "../utils/password.js";
+import { verifyPassword } from "../utils/password.js";
+import { generateAccessToken } from "../utils/token.js";
+import { generateEmailVerificationToken } from "../utils/emailverification.js";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail
+} from "./email.service.js";
+
+import { hashEmailVerificationToken } from "../utils/emailverification.js";
+
+import {
+  generatePasswordResetToken,
+  hashPasswordResetToken
+} from "../utils/passwordReset.js";
+
+export async function registerUser({ name, email, password, collegeId }) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const existingUser = await User.exists({
+    email: normalizedEmail
+  });
+
+  if (existingUser) {
+    const error = new Error("An account with this email already exists.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  let selectedCollege = null;
+
+  if (collegeId) {
+    selectedCollege = await College.findOne({
+      _id: collegeId,
+      isActive: true,
+      verificationStatus: "verified"
+    })
+      .select("_id")
+      .lean();
+
+    if (!selectedCollege) {
+      const error = new Error(
+        "The selected college does not exist or is not verified."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  const passwordHash = await hashPassword(password);
+
+  const { token, tokenHash, expiresAt } =
+    generateEmailVerificationToken();
+
+  let user;
+
+  try {
+    user = await User.create({
+      name,
+      email: normalizedEmail,
+      passwordHash,
+      role: "student",
+      collegeId: selectedCollege?._id ?? null,
+      collegeAffiliationStatus: selectedCollege
+        ? "pending"
+        : "not_provided",
+      emailVerified: false,
+      emailVerificationTokenHash: tokenHash,
+      emailVerificationExpiresAt: expiresAt,
+      teacherApprovalStatus: "not_applicable",
+      authProvider: "local"
+    });
+  } catch (error) {
+    // Protect against concurrent registrations using the same email.
+    if (error.code === 11000 && error.keyPattern?.email) {
+      const duplicateError = new Error(
+        "An account with this email already exists."
+      );
+      duplicateError.statusCode = 409;
+      throw duplicateError;
+    }
+
+    throw error;
+  }
+
+  try {
+    await sendVerificationEmail({
+      email: user.email,
+      token
+    });
+  } catch (error) {
+    // The account remains unverified. Never expose the token in the response.
+    console.error(
+      "Verification email delivery failed:",
+      error.message
+    );
+
+    const emailError = new Error(
+      "Your account was created, but the verification email could not be sent. Please try again later."
+    );
+
+    emailError.statusCode = 503;
+    throw emailError;
+  }
+
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    collegeId: user.collegeId,
+    collegeAffiliationStatus: user.collegeAffiliationStatus,
+    emailVerified: user.emailVerified,
+    message: "Registration successful. Please check your email to verify your account."
+  };
+}
+
+
+
+
+export async function loginUser({ email, password }) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const user = await User.findOne({
+    email: normalizedEmail
+  }).select("+passwordHash");
+
+  // 1. Validate email and password.
+  // Use the same error for a missing account and an incorrect password.
+  if (
+    !user ||
+    !user.passwordHash ||
+    !(await verifyPassword(password, user.passwordHash))
+  ) {
+    const error = new Error("Invalid email or password.");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // 2. Reject inactive accounts.
+  if (!user.isActive) {
+    const error = new Error("This account is inactive.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // 3. Require email verification before allowing login.
+  if (!user.emailVerified) {
+    const error = new Error(
+      "Please verify your email address before logging in."
+    );
+    error.statusCode = 403;
+    error.code = "EMAIL_NOT_VERIFIED";
+    throw error;
+  }
+
+  // 4. Generate the access token only after all checks pass.
+  const accessToken = await generateAccessToken(user);
+
+  // 5. Update the last login timestamp.
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  // 6. Return the access token and safe user information.
+  return {
+    accessToken,
+    tokenType: "Bearer",
+    expiresIn: 900,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      collegeId: user.collegeId,
+      emailVerified: user.emailVerified,
+      collegeAffiliationStatus: user.collegeAffiliationStatus,
+      teacherApprovalStatus: user.teacherApprovalStatus
+    }
+  };
+}
+
+
+export async function verifyUserEmail(token) {
+  let tokenHash;
+
+  try {
+    tokenHash = hashEmailVerificationToken(token);
+  } catch {
+    const error = new Error("Invalid or expired verification link.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await User.findOne({
+    emailVerificationTokenHash: tokenHash,
+    emailVerificationExpiresAt: { $gt: new Date() },
+    emailVerified: false,
+    isActive: true
+  }).select("+emailVerificationTokenHash +emailVerificationExpiresAt");
+
+  if (!user) {
+    const error = new Error("Invalid or expired verification link.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  user.emailVerified = true;
+  user.emailVerificationTokenHash = null;
+  user.emailVerificationExpiresAt = null;
+
+  await user.save();
+
+  return {
+    email: user.email,
+    emailVerified: user.emailVerified
+  };
+}
+
+
+export async function resendVerificationEmail({ email }) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const user = await User.findOne({
+    email: normalizedEmail
+  });
+
+  // Use a generic response to avoid revealing account existence.
+  const genericResponse = {
+    message:
+      "If an eligible account exists, a verification email will be sent."
+  };
+
+  if (!user || !user.isActive || user.emailVerified) {
+    return genericResponse;
+  }
+
+  // Generate a fresh verification token.
+  const {
+    token,
+    tokenHash,
+    expiresAt
+  } = generateEmailVerificationToken();
+
+  // Replace the old token and expiry.
+  user.emailVerificationTokenHash = tokenHash;
+  user.emailVerificationExpiresAt = expiresAt;
+
+  await user.save();
+
+  try {
+    await sendVerificationEmail({
+      email: user.email,
+      token
+    });
+  } catch (error) {
+    console.error(
+      "Resend verification email delivery failed:",
+      error.message
+    );
+
+    const serviceError = new Error(
+      "Unable to send the verification email right now. Please try again later."
+    );
+
+    serviceError.statusCode = 503;
+    throw serviceError;
+  }
+
+  return genericResponse;
+}
+
+export async function requestPasswordReset({ email }) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Return the same response regardless of whether the account exists.
+  const genericResponse = {
+    message:
+      "If an eligible account exists, password reset instructions will be sent."
+  };
+
+  const user = await User.findOne({
+    email: normalizedEmail,
+    isActive: true,
+    authProvider: "local"
+  });
+
+  if (!user) {
+    return genericResponse;
+  }
+
+  const {
+    token,
+    tokenHash,
+    expiresAt
+  } = generatePasswordResetToken();
+
+  // Store only the hashed token.
+  user.passwordResetTokenHash = tokenHash;
+  user.passwordResetExpiresAt = expiresAt;
+
+  await user.save();
+
+  try {
+    // Reuse the existing email service with a dedicated reset email.
+    await sendPasswordResetEmail({
+      email: user.email,
+      token
+    });
+  } catch (error) {
+    console.error(
+      "Password reset email delivery failed:",
+      error.message
+    );
+
+    // Clear the token if delivery fails.
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
+    await user.save();
+
+    const serviceError = new Error(
+      "Unable to send password reset instructions right now. Please try again later."
+    );
+
+    serviceError.statusCode = 503;
+    throw serviceError;
+  }
+
+  return genericResponse;
+}
+
+
+export async function resetPassword({ token, newPassword }) {
+  // Hash the token received from the client.
+  const tokenHash = hashPasswordResetToken(token);
+
+  // Find the user whose reset token matches and has not expired.
+  const user = await User.findOne({
+    passwordResetTokenHash: tokenHash,
+    passwordResetExpiresAt: { $gt: new Date() },
+    isActive: true,
+    authProvider: "local"
+  }).select("+passwordResetTokenHash +passwordResetExpiresAt");
+
+  if (!user) {
+    const error = new Error(
+      "The password reset link is invalid or has expired."
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Validate and securely hash the new password.
+  const passwordHash = await hashPassword(newPassword);
+
+  user.passwordHash = passwordHash;
+
+  // Invalidate the reset token after successful use.
+  user.passwordResetTokenHash = null;
+  user.passwordResetExpiresAt = null;
+
+  await user.save();
+
+  return {
+    message: "Password reset successfully. You can now log in."
+  };
+}
+
+
+
+
+========== src/routes/auth.routes.js ==========
+import { Router } from "express";
+
+import {
+  registerController,
+  loginController,
+  getCurrentUserController,
+  verifyEmailController,
+  resendVerificationEmailController,
+  requestPasswordResetController,
+  resetPasswordController
+} from "../controllers/auth.controller.js";
+
+import {
+  loginRateLimiter,
+  registerRateLimiter,
+  resendVerificationRateLimiter,
+  verifyEmailRateLimiter,
+  forgotPasswordRateLimiter,
+  resetPasswordRateLimiter
+} from "../middleware/rateLimit.middleware.js";
+
+import { authenticateUser } from "../middleware/auth.middleware.js";
+
+const router = Router();
+
+// Registration and login
+router.post("/register", registerRateLimiter, registerController);
+router.post("/login", loginRateLimiter, loginController);
+
+// Email verification
+router.post(
+  "/verify-email",
+  verifyEmailRateLimiter,
+  verifyEmailController
+);
+
+router.post(
+  "/resend-verification",
+  resendVerificationRateLimiter,
+  resendVerificationEmailController
+);
+
+// Password reset
+router.post(
+  "/forgot-password",
+  forgotPasswordRateLimiter,
+  requestPasswordResetController
+);
+
+router.post(
+  "/reset-password",
+  resetPasswordRateLimiter,
+  resetPasswordController
+);
+
+// Authenticated user
+router.get("/me", authenticateUser, getCurrentUserController);
+
+export default router;
+
+========== src/models/User.js ==========
+import mongoose from "mongoose";
+
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Full name is required."],
+      trim: true,
+      minlength: [2, "Name must contain at least 2 characters."],
+      maxlength: [100, "Name cannot exceed 100 characters."]
+    },
+
+    email: {
+      type: String,
+      required: [true, "Email is required."],
+      lowercase: true,
+      trim: true,
+      maxlength: [254, "Email cannot exceed 254 characters."],
+      match: [
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Please provide a valid email address."
+      ]
+    },
+
+    // Never returned by default. Always select explicitly with "+passwordHash".
+    passwordHash: {
+      type: String,
+      default: undefined,
+      select: false
+    },
+
+    role: {
+      type: String,
+      enum: ["student", "teacher", "admin"],
+      required: true,
+      default: "student"
+    },
+
+    collegeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "College",
+      default: null,
+      index: true
+    },
+
+    collegeAffiliationStatus: {
+      type: String,
+      enum: [
+        "not_provided",
+        "pending",
+        "verified",
+        "rejected"
+      ],
+      default: "not_provided",
+      required: true
+    },
+
+    emailVerified: {
+      type: Boolean,
+      default: false,
+      required: true
+    },
+
+    emailVerificationTokenHash: {
+      type: String,
+      default: null,
+      select: false
+    },
+
+    emailVerificationExpiresAt: {
+      type: Date,
+      default: null,
+      select: false
+    },
+
+    passwordResetTokenHash: {
+      type: String,
+      default: null,
+      select: false
+    },
+
+    passwordResetExpiresAt: {
+      type: Date,
+      default: null,
+      select: false
+    },
+
+    teacherApprovalStatus: {
+      type: String,
+      enum: [
+        "not_applicable",
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      default: "not_applicable",
+      required: true
+    },
+
+    // Reason stored when an admin rejects a teacher application.
+    teacherApprovalRejectionReason: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Rejection reason cannot exceed 500 characters."],
+      default: ""
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+      required: true
+    },
+
+    /*
+     * Increment this counter to invalidate all previously issued JWTs.
+     * Any JWT that carries a sessionVersion lower than the current value
+     * is treated as revoked. This enables:
+     *   - Logout from all devices
+     *   - Forced sign-out after a password change or security event
+     */
+    sessionVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+      required: true,
+      select: false
+    },
+
+    profile: {
+      phone: {
+        type: String,
+        trim: true,
+        default: ""
+      },
+
+      academicYear: {
+        type: String,
+        enum: [
+          "",
+          "1st Year",
+          "2nd Year",
+          "3rd Year",
+          "4th Year",
+          "5th Year"
+        ],
+        default: ""
+      },
+
+      about: {
+        type: String,
+        trim: true,
+        maxlength: [
+          1000,
+          "About section cannot exceed 1000 characters."
+        ],
+        default: ""
+      }
+    },
+
+    /*
+     * Retained for backward-compatibility with existing code.
+     * This is NOT the authoritative list of linked login providers.
+     * Use OAuthIdentity documents for multi-provider identity management.
+     */
+    authProvider: {
+      type: String,
+      enum: ["local", "google", "github"],
+      default: "local",
+      required: true
+    },
+
+    lastLoginAt: {
+      type: Date,
+      default: null
+    }
+  },
+  {
+    timestamps: true,
+    versionKey: false
+  }
+);
+
+// Each normalized email must belong to only one account.
+userSchema.index(
+  { email: 1 },
+  { unique: true, name: "user_email_unique" }
+);
+
+userSchema.index(
+  { role: 1, isActive: 1 },
+  { name: "user_role_active" }
+);
+
+userSchema.index(
+  { role: 1, teacherApprovalStatus: 1 },
+  { name: "teacher_approval_queue" }
+);
+
+const User = mongoose.model("User", userSchema);
+
+export default User;
+
+
+========== src/models/OAuthIdentity.js ==========
+import mongoose from "mongoose";
+
+const oauthIdentitySchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      immutable: true
+    },
+
+    provider: {
+      type: String,
+      enum: ["google", "github"],
+      required: true,
+      immutable: true
+    },
+
+    // Stable, unique identifier supplied by the OAuth provider.
+    // Do not use an email address as the provider identity.
+    providerUserId: {
+      type: String,
+      required: true,
+      trim: true,
+      immutable: true
+    },
+
+    providerEmail: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      maxlength: 254,
+      default: null
+    },
+
+    providerEmailVerified: {
+      type: Boolean,
+      default: false,
+      required: true
+    }
+  },
+  {
+    timestamps: true,
+    versionKey: false
+  }
+);
+
+// One provider identity can be connected to only one OpenNotes account.
+oauthIdentitySchema.index(
+  { provider: 1, providerUserId: 1 },
+  {
+    unique: true,
+    name: "oauth_provider_identity_unique"
+  }
+);
+
+// Quickly retrieve all linked providers for an account.
+oauthIdentitySchema.index(
+  { userId: 1, provider: 1 },
+  {
+    name: "oauth_user_provider"
+  }
+);
+
+const OAuthIdentity = mongoose.model(
+  "OAuthIdentity",
+  oauthIdentitySchema
+);
+
+export default OAuthIdentity;
+
+========== src/models/College.js ==========
+import mongoose from "mongoose";
+
+const collegeSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "College name is required."],
+      trim: true,
+      minlength: [2, "College name must contain at least 2 characters."],
+      maxlength: [200, "College name cannot exceed 200 characters."]
+    },
+
+    nameKey: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true
+    },
+
+    domains: {
+      type: [
+        {
+          type: String,
+          lowercase: true,
+          trim: true
+        }
+      ],
+      default: [],
+      validate: {
+        validator(domains) {
+          return (
+            domains.length ===
+            new Set(domains.map((domain) => domain.toLowerCase())).size
+          );
+        },
+        message: "Duplicate email domains are not allowed."
+      }
+    },
+
+    verificationStatus: {
+      type: String,
+      enum: ["pending", "verified", "rejected"],
+      default: "pending",
+      required: true
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+      required: true
+    },
+
+    address: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Address cannot exceed 500 characters."],
+      default: ""
+    },
+
+    website: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    }
+  },
+  {
+    timestamps: true,
+    versionKey: false
+  }
+);
+
+// Efficient college name searches.
+collegeSchema.index({ name: 1 });
+
+// Efficient lookup of colleges by institutional email domain.
+collegeSchema.index({ domains: 1 });
+
+// Keep the normalized name synchronized with the display name.
+collegeSchema.pre("validate", function () {
+  if (this.name) {
+    this.nameKey = this.name.trim().toLowerCase();
+  }
+});
+
+const College = mongoose.model("College", collegeSchema);
+
+export default College;
+
+========== src/middleware/auth.middleware.js ==========
+import User from "../models/User.js";
+import { verifyAccessToken } from "../utils/token.js";
+
+/**
+ * Verify the Bearer token and attach req.auth = { userId, role }.
+ *
+ * Security properties:
+ * - Reads role from MongoDB, not from the JWT payload.
+ * - Checks sessionVersion to detect revoked tokens (logout, password change).
+ * - Rejects inactive accounts.
+ */
+export async function authenticateUser(req, res, next) {
+  try {
+    // 1. Read the Authorization header.
+    const authorization = req.headers.authorization;
+
+    if (!authorization || !authorization.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required."
+      });
+    }
+
+    // 2. Extract the access token.
+    const token = authorization.slice("Bearer ".length).trim();
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required."
+      });
+    }
+
+    // 3. Verify the token's signature and expiration.
+    const payload = await verifyAccessToken(token);
+
+    if (
+      typeof payload.sub !== "string" ||
+      !["student", "teacher", "admin"].includes(payload.role)
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid authentication token."
+      });
+    }
+
+    // 4. Fetch the current user from MongoDB to get the live sessionVersion.
+    const user = await User.findById(payload.sub)
+      .select("_id role isActive sessionVersion");
+
+    // 5. Reject deleted or inactive accounts.
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: "Your account is unavailable. Please log in again."
+      });
+    }
+
+    // 6. Reject tokens issued before the last session invalidation.
+    //    If sv (sessionVersion in JWT) < current sessionVersion, the token is revoked.
+    const tokenSv = typeof payload.sv === "number" ? payload.sv : 0;
+    if (tokenSv < (user.sessionVersion ?? 0)) {
+      return res.status(401).json({
+        success: false,
+        message: "Your session has expired. Please log in again."
+      });
+    }
+
+    // 7. Store the current database role, not the token's role.
+    req.auth = {
+      userId: user._id.toString(),
+      role: user.role
+    };
+
+    return next();
+  } catch (error) {
+    // Invalid or expired tokens return 401.
+    // Unexpected database errors propagate to the global handler.
+    if (
+      error?.code === "ERR_JWT_EXPIRED" ||
+      error?.code === "ERR_JWS_INVALID" ||
+      error?.code === "ERR_JWT_INVALID" ||
+      error?.code === "ERR_JWT_CLAIM_VALIDATION_FAILED" ||
+      error?.code === "ERR_JWS_SIGNATURE_VERIFICATION_FAILED" ||
+      error?.name === "JWTExpired" ||
+      error?.name === "JWTClaimValidationFailed" ||
+      error?.name === "JWSSignatureVerificationFailed" ||
+      error?.name === "JWSInvalid" ||
+      error?.name === "JWTInvalid" ||
+      error?.name === "CastError"
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired authentication token."
+      });
+    }
+
+    return next(error);
+  }
+}
+
+/**
+ * Restrict access to routes based on the authenticated user's role.
+ * Must be used after authenticateUser.
+ */
+export function requireRole(...allowedRoles) {
+  return function roleAuthorization(req, res, next) {
+    if (!req.auth) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required."
+      });
+    }
+
+    if (!allowedRoles.includes(req.auth.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to access this resource."
+      });
+    }
+
+    return next();
+  };
+}
+
+
+========== src/controllers/college.controller.js ==========
+
+import {
+  searchColleges,
+  getCollegeById
+} from "../services/college.service.js";
+
+import {
+  collegeSearchSchema,
+  collegeIdSchema
+} from "../validators/college.validator.js";
+
+export async function searchCollegesController(req, res, next) {
+  try {
+    const validation = collegeSearchSchema.safeParse(req.query);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid college search parameters.",
+        errors: validation.error.issues.map((issue) => ({
+          field: issue.path.join("."),
+          message: issue.message
+        }))
+      });
+    }
+
+    const { q, limit } = validation.data;
+    const colleges = await searchColleges(q, limit);
+
+    return res.status(200).json({
+      success: true,
+      count: colleges.length,
+      data: colleges
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getCollegeController(req, res, next) {
+  try {
+    const validation = collegeIdSchema.safeParse(req.params.id);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid college ID."
+      });
+    }
+
+    const college = await getCollegeById(validation.data);
+
+    if (!college) {
+      return res.status(404).json({
+        success: false,
+        message: "College not found."
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: college
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+
+========== src/services/college.service.js ==========
+import College from "../models/College.js";
+
+export async function searchColleges(query, limit = 10) {
+  const searchTerm = query.trim();
+
+  if (!searchTerm) {
+    return [];
+  }
+
+  return College.find({
+    isActive: true,
+    verificationStatus: "verified",
+    name: {
+      $regex: escapeRegex(searchTerm),
+      $options: "i"
+    }
+  })
+    .select("name address website")
+    .sort({ name: 1 })
+    .limit(limit)
+    .lean();
+}
+
+export async function getCollegeById(collegeId) {
+  return College.findOne({
+    _id: collegeId,
+    isActive: true,
+    verificationStatus: "verified"
+  })
+    .select("name address website")
+    .lean();
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+
+========== src/routes/college.routes.js ==========
+
+import { Router } from "express";
+
+import {
+  searchCollegesController,
+  getCollegeController
+} from "../controllers/college.controller.js";
+
+const router = Router();
+
+router.get("/search", searchCollegesController);
+router.get("/:id", getCollegeController);
+
+export default router;
+
+
+========== src/validators/auth.validator.js ==========
+import { z } from "zod";
+
+export const registerSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "Name must contain at least 2 characters.")
+      .max(100, "Name cannot exceed 100 characters."),
+
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Enter a valid email address.")
+      .max(254, "Email cannot exceed 254 characters."),
+
+    password: z
+      .string()
+      .min(12, "Password must contain at least 12 characters.")
+      .max(128, "Password cannot exceed 128 characters."),
+
+    collegeId: z
+      .string()
+      .regex(/^[a-f\d]{24}$/i, "Enter a valid college ID.")
+      .optional()
+  })
+  .strict();
+
+export const loginSchema = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Enter a valid email address.")
+      .max(254, "Email cannot exceed 254 characters."),
+
+    password: z
+      .string()
+      .min(1, "Password is required.")
+      .max(128, "Password cannot exceed 128 characters.")
+  })
+  .strict();
+
+========== src/validators/college.validator.js ==========
+import { z } from "zod";
+
+const domainSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Email domain is required.")
+  .max(253, "Email domain is too long.")
+  .regex(
+    /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/,
+    "Enter a valid domain, such as college.edu."
+  );
+
+export const createCollegeSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "College name must contain at least 2 characters.")
+      .max(200, "College name cannot exceed 200 characters."),
+
+    domains: z.array(domainSchema).max(20).default([]),
+
+    address: z
+      .string()
+      .trim()
+      .max(500, "Address cannot exceed 500 characters.")
+      .default(""),
+
+    website: z
+      .string()
+      .trim()
+      .max(500, "Website cannot exceed 500 characters.")
+      .default("")
+      .refine(
+        (value) => {
+          if (!value) return true;
+
+          try {
+            const url = new URL(value);
+            return ["http:", "https:"].includes(url.protocol);
+          } catch {
+            return false;
+          }
+        },
+        { message: "Website must be a valid HTTP or HTTPS URL." }
+      )
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    const normalizedDomains = data.domains.map((domain) =>
+      domain.toLowerCase()
+    );
+
+    if (new Set(normalizedDomains).size !== normalizedDomains.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["domains"],
+        message: "Duplicate email domains are not allowed."
+      });
+    }
+  });
+
+export const collegeSearchSchema = z
+  .object({
+    q: z.string().trim().min(1).max(100),
+    limit: z.coerce.number().int().min(1).max(20).default(10)
+  })
+  .strict();
+
+export const collegeIdSchema = z
+  .string()
+  .regex(/^[a-f\d]{24}$/i, "A valid college ID is required.");
+
+========== .env.example ==========
+NODE_ENV=development
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+MONGODB_URI=YOUR_MONGODB_ATLAS_CONNECTION_STRING
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=465
+EMAIL_SECURE=true
+EMAIL_USER=
+EMAIL_APP_PASSWORD=
+
+# Google OAuth
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=http://localhost:5000/api/v1/auth/google/callback
+
+# GitHub OAuth
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GITHUB_CALLBACK_URL=http://localhost:5000/api/v1/auth/github/callback
+# Session security
+SESSION_SECRET=
+
+========== SOURCE TREE ==========
+src\app.js
+src\server.js
+src\config\database.js
+src\config\env.js
+src\config\password.js
+src\config\session.js
+src\controllers\auth.controller.js
+src\controllers\college.controller.js
+src\controllers\health.controller.js
+src\middleware\auth.middleware.js
+src\middleware\error.middleware.js
+src\middleware\rateLimit.middleware.js
+src\models\AcademicStructure.js
+src\models\College.js
+src\models\Note.js
+src\models\OAuthIdentity.js
+src\models\PYQ.js
+src\models\User.js
+src\routes\auth.routes.js
+src\routes\college.routes.js
+src\routes\health.routes.js
+src\services\auth.service.js
+src\services\college.service.js
+src\services\email.service.js
+src\utils\emailverification.js
+src\utils\password.js
+src\utils\passwordReset.js
+src\utils\token.js
+src\validators\academic.validator.js
+src\validators\auth.validator.js
+src\validators\college.validator.js
+src\validators\note.validator.js
+src\validators\pyq.validator.js
+
+========== TEST FILE CONTENTS ==========
+
+========== D:\OpenNotes\Backend\tests\auth.test.js ==========
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import request from "supertest";
+
+const mocks = vi.hoisted(() => ({
+  registerUser: vi.fn(),
+  loginUser: vi.fn(),
+  verifyUserEmail: vi.fn(),
+  resendVerificationEmail: vi.fn(),
+  requestPasswordReset: vi.fn(),
+  resetPassword: vi.fn()
+}));
+
+vi.mock("../src/services/auth.service.js", () => ({
+  registerUser: mocks.registerUser,
+  loginUser: mocks.loginUser,
+  verifyUserEmail: mocks.verifyUserEmail,
+  resendVerificationEmail: mocks.resendVerificationEmail,
+  requestPasswordReset: mocks.requestPasswordReset,
+  resetPassword: mocks.resetPassword
+}));
+
+vi.mock("../src/models/User.js", () => ({
+  default: {
+    findOne: vi.fn()
+  }
+}));
+
+import app from "../src/app.js";
+
+describe("Authentication API", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("POST /api/v1/auth/register", () => {
+    it("rejects an invalid email address", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/register")
+        .send({
+          name: "Test Student",
+          email: "invalid-email",
+          password: "SecurePassword123!"
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(mocks.registerUser).not.toHaveBeenCalled();
+    });
+
+    it("rejects a password shorter than 12 characters", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/register")
+        .send({
+          name: "Test Student",
+          email: "student@example.com",
+          password: "Short123!"
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(mocks.registerUser).not.toHaveBeenCalled();
+    });
+
+    it("rejects an attempt to assign the admin role", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/register")
+        .send({
+          name: "Test Student",
+          email: "student@example.com",
+          password: "SecurePassword123!",
+          role: "admin"
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(mocks.registerUser).not.toHaveBeenCalled();
+    });
+
+    it("creates an account using the service when input is valid", async () => {
+      mocks.registerUser.mockResolvedValue({
+        id: "507f1f77bcf86cd799439011",
+        name: "Test Student",
+        email: "student@example.com",
+        role: "student",
+        emailVerified: false
+      });
+
+      const response = await request(app)
+        .post("/api/v1/auth/register")
+        .send({
+          name: "Test Student",
+          email: "student@example.com",
+          password: "SecurePassword123!"
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(mocks.registerUser).toHaveBeenCalledWith({
+        name: "Test Student",
+        email: "student@example.com",
+        password: "SecurePassword123!"
+      });
+
+      expect(response.body.data.passwordHash).toBeUndefined();
+    });
+  });
+
+  describe("POST /api/v1/auth/login", () => {
+    it("rejects invalid login input", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/login")
+        .send({
+          email: "invalid-email",
+          password: "anything"
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(mocks.loginUser).not.toHaveBeenCalled();
+    });
+
+    it("returns an access token after successful authentication", async () => {
+      mocks.loginUser.mockResolvedValue({
+        accessToken: "mock-access-token",
+        tokenType: "Bearer",
+        expiresIn: 900,
+        user: {
+          id: "507f1f77bcf86cd799439011",
+          name: "Test Student",
+          email: "student@example.com",
+          role: "student",
+          emailVerified: true
+        }
+      });
+
+      const response = await request(app)
+        .post("/api/v1/auth/login")
+        .send({
+          email: "student@example.com",
+          password: "SecurePassword123!"
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.accessToken).toBe("mock-access-token");
+      expect(response.body.data.user.passwordHash).toBeUndefined();
+    });
+
+    it("returns an error when authentication fails", async () => {
+      const error = new Error("Invalid email or password.");
+      error.statusCode = 401;
+
+      mocks.loginUser.mockRejectedValue(error);
+
+      const response = await request(app)
+        .post("/api/v1/auth/login")
+        .send({
+          email: "student@example.com",
+          password: "WrongPassword123!"
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+    });
+  });
+});
+
+  describe("POST /api/v1/auth/forgot-password", () => {
+    it("rejects an invalid email address", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/forgot-password")
+        .send({
+          email: "invalid-email"
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(mocks.requestPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it("returns a generic response for a valid email address", async () => {
+      mocks.requestPasswordReset.mockResolvedValue({
+        message:
+          "If an eligible account exists, password reset instructions will be sent."
+      });
+
+      const response = await request(app)
+        .post("/api/v1/auth/forgot-password")
+        .send({
+          email: "student@example.com"
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe(
+        "If an eligible account exists, password reset instructions will be sent."
+      );
+
+      expect(mocks.requestPasswordReset).toHaveBeenCalledWith({
+        email: "student@example.com"
+      });
+    });
+  });
+
+  describe("POST /api/v1/auth/reset-password", () => {
+    it("rejects a malformed reset token", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          token: "invalid-token",
+          newPassword: "SecurePassword123!"
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(mocks.resetPassword).not.toHaveBeenCalled();
+    });
+
+    it("rejects a password shorter than 12 characters", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          token: "a".repeat(64),
+          newPassword: "Short123!"
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(mocks.resetPassword).not.toHaveBeenCalled();
+    });
+  });
+
+========== D:\OpenNotes\Backend\tests\password.test.js ==========
+import { describe, it, expect } from "vitest";
+import {
+  validatePassword,
+  hashPassword,
+  verifyPassword
+} from "../src/utils/password.js";
+
+describe("Password security", () => {
+  it("accepts a valid password", () => {
+    expect(
+      validatePassword("SecurePassword123!").valid
+    ).toBe(true);
+  });
+
+  it("rejects a password shorter than 12 characters", () => {
+    const result = validatePassword("Short123!");
+
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("at least 12 characters");
+  });
+
+  it("rejects a password longer than 128 characters", () => {
+    const longPassword = "A".repeat(129);
+    const result = validatePassword(longPassword);
+
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("128 characters");
+  });
+
+  it("rejects non-string passwords", () => {
+    const result = validatePassword(123456789012);
+
+    expect(result.valid).toBe(false);
+    expect(result.message).toBe("Password must be a string.");
+  });
+
+  it("creates an Argon2id password hash", async () => {
+    const password = "SecurePassword123!";
+    const passwordHash = await hashPassword(password);
+
+    expect(passwordHash).toMatch(/^\$argon2id\$/);
+    expect(passwordHash).not.toBe(password);
+  });
+
+  it("accepts the correct password", async () => {
+    const password = "SecurePassword123!";
+    const passwordHash = await hashPassword(password);
+
+    await expect(
+      verifyPassword(password, passwordHash)
+    ).resolves.toBe(true);
+  });
+
+  it("rejects an incorrect password", async () => {
+    const password = "SecurePassword123!";
+    const passwordHash = await hashPassword(password);
+
+    await expect(
+      verifyPassword("WrongPassword123!", passwordHash)
+    ).resolves.toBe(false);
+  });
+
+  it("rejects an invalid password hash", async () => {
+    await expect(
+      verifyPassword("SecurePassword123!", "invalid-hash")
+    ).resolves.toBe(false);
+  });
+
+  it("rejects a password that is too short when hashing", async () => {
+    await expect(
+      hashPassword("Short123!")
+    ).rejects.toThrow("Password must contain at least 12 characters.");
+  });
+});
+
+========== D:\OpenNotes\Backend\tests\rateLimit.test.js ==========
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import express from "express";
+import request from "supertest";
+import { rateLimit } from "express-rate-limit";
+
+describe("Authentication rate limiting", () => {
+  let app;
+
+  beforeEach(() => {
+    vi.useRealTimers();
+
+    app = express();
+    app.use(express.json());
+
+    // A small test-only limit makes it possible to verify
+    // rate limiting without making many requests.
+    const testLimiter = rateLimit({
+      windowMs: 60_000,
+      limit: 2,
+      standardHeaders: "draft-8",
+      legacyHeaders: false,
+      message: {
+        success: false,
+        message: "Too many requests."
+      }
+    });
+
+    app.post("/test-login", testLimiter, (req, res) => {
+      res.status(200).json({
+        success: true
+      });
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("allows requests within the limit", async () => {
+    const first = await request(app).post("/test-login");
+    const second = await request(app).post("/test-login");
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+  });
+
+  it("blocks requests after the limit is exceeded", async () => {
+    await request(app).post("/test-login");
+    await request(app).post("/test-login");
+
+    const third = await request(app).post("/test-login");
+
+    expect(third.status).toBe(429);
+    expect(third.body.success).toBe(false);
+    expect(third.body.message).toBe("Too many requests.");
+  });
+});
+
+========== D:\OpenNotes\Backend\tests\token.test.js ==========
+import { describe, it, expect } from "vitest";
+import { generateAccessToken, verifyAccessToken } from "../src/utils/token.js";
+
+describe("JWT access tokens", () => {
+  it("generates and verifies a valid access token", async () => {
+    const user = {
+      _id: "507f1f77bcf86cd799439011",
+      role: "student"
+    };
+
+    const token = await generateAccessToken(user);
+    const payload = await verifyAccessToken(token);
+
+    expect(payload.sub).toBe(user._id);
+    expect(payload.role).toBe("student");
+    expect(payload.iss).toBe("opennotes-api");
+    expect(payload.aud).toBe("opennotes-client");
+  });
+
+  it("rejects a malformed token", async () => {
+    await expect(
+      verifyAccessToken("not-a-valid-token")
+    ).rejects.toThrow();
+  });
+});

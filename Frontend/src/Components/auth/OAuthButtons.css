@@ -1,0 +1,68 @@
+.oauth-block {
+  width: 100%;
+}
+
+.oauth-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 26px 0 14px;
+  color: #858585;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+}
+
+.oauth-divider::before,
+.oauth-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: #292929;
+}
+
+.oauth-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.oauth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #363636;
+  border-radius: 8px;
+  background: #151515;
+  color: #e6e6e6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.oauth-button:hover:not(:disabled) {
+  border-color: var(--login-gold, var(--signup-gold, #d6ad55));
+  color: var(--login-gold, var(--signup-gold, #d6ad55));
+}
+
+.oauth-button:focus-visible {
+  outline: 2px solid var(--login-gold, var(--signup-gold, #d6ad55));
+  outline-offset: 2px;
+}
+
+.oauth-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.oauth-note {
+  margin: 10px 0 0;
+  color: #707070;
+  font-size: 11px;
+  text-align: center;
+}

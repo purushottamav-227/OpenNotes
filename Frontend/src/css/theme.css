@@ -1,0 +1,25 @@
+/* =====================================
+   LIGHT THEME
+===================================== */
+
+[data-theme="light"] {
+  --color-background: #f5f5f5;
+  --color-background-secondary: #ffffff;
+
+  --color-surface: #ffffff;
+  --color-surface-hover: #f0f0f0;
+
+  --color-sidebar: #ffffff;
+  --color-border: #dedede;
+
+  --color-primary: #d9a400;
+  --color-primary-hover: #c39400;
+  --color-primary-dark: #a97e00;
+
+  --color-text: #111111;
+  --color-text-secondary: #444444;
+  --color-text-muted: #707070;
+
+  --shadow-small: 0 2px 10px rgba(0, 0, 0, 0.08);
+  --shadow-medium: 0 8px 30px rgba(0, 0, 0, 0.12);
+}

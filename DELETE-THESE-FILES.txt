@@ -1,5 +1,0 @@
-Delete these files from your project (they are no longer used):
-
-  Frontend/src/Pages/Admin/AdminDashboard.jsx
-  Frontend/src/Pages/Teacher/TeacherDashboard.jsx
-  Frontend/src/hooks/useMyUploadStats.js

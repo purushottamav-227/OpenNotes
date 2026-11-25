@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  BookOpen,
   Eye,
   EyeOff,
   CheckCircle2,
+  GraduationCap,
 } from "lucide-react";
 import { authApi } from "../../services/api";
 import "./Signup.css";
@@ -12,6 +14,8 @@ import OAuthButtons from "../../Components/auth/OAuthButtons";
 import CollegePicker from "../../Components/auth/CollegePicker";
 
 function Signup() {
+  const [role, setRole] = useState("student");
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -79,6 +83,11 @@ function Signup() {
       return;
     }
 
+    if (role === "teacher" && !college) {
+      setError("Select your college to register as a teacher.");
+      return;
+    }
+
     if (!form.acceptTerms) {
       setError("Please accept the terms to continue.");
       return;
@@ -91,6 +100,7 @@ function Signup() {
         name,
         email,
         password,
+        role,
         ...(college ? { collegeId: college._id } : {}),
       });
 
@@ -101,8 +111,10 @@ function Signup() {
       }
 
       setSuccess(
-        result.message ||
-          "Registration successful. Please check your email and verify your account before signing in."
+        role === "teacher"
+          ? "Registration successful. Verify your email, then wait for an administrator to approve your teacher account before you can upload."
+          : result.message ||
+              "Registration successful. Please check your email and verify your account before signing in."
       );
 
       setForm({
@@ -113,6 +125,7 @@ function Signup() {
         acceptTerms: false,
       });
       setCollege(null);
+      setRole("student");
     } catch (err) {
       console.error("OpenNotes registration error:", err);
 
@@ -183,6 +196,58 @@ function Signup() {
           </header>
 
           <form className="signup-form" onSubmit={handleSubmit}>
+            <fieldset className="signup-role-fieldset">
+              <legend>I am registering as</legend>
+
+              <div className="signup-role-options">
+                {[
+                  {
+                    value: "student",
+                    label: "Student",
+                    hint: "Browse and upload notes and PYQs.",
+                    Icon: GraduationCap,
+                  },
+                  {
+                    value: "teacher",
+                    label: "Teacher",
+                    hint: "Needs administrator approval.",
+                    Icon: BookOpen,
+                  },
+                ].map(({ value, label, hint, Icon }) => (
+                  <label
+                    key={value}
+                    className={`signup-role-option ${
+                      role === value ? "selected" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="role"
+                      value={value}
+                      checked={role === value}
+                      onChange={() => {
+                        setRole(value);
+                        setError("");
+                        setSuccess("");
+                      }}
+                    />
+                    <Icon size={18} aria-hidden="true" />
+                    <span>
+                      <strong>{label}</strong>
+                      <small>{hint}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              {role === "teacher" && (
+                <p className="signup-approval-note">
+                  Teacher accounts can browse straight away, but can upload
+                  only after an administrator approves them.
+                </p>
+              )}
+            </fieldset>
+
             <div className="signup-field">
               <label htmlFor="signup-name">Full name</label>
 
@@ -215,7 +280,9 @@ function Signup() {
             </div>
 
             <div className="signup-field">
-              <label htmlFor="signup-college">College (optional)</label>
+              <label htmlFor="signup-college">
+                {role === "teacher" ? "College" : "College (optional)"}
+              </label>
 
               <CollegePicker
                 value={college}
@@ -228,8 +295,9 @@ function Signup() {
               />
 
               <p className="signup-field-hint">
-                Select your college to upload resources later. Use your
-                college email address so we can confirm your affiliation.
+                {role === "teacher"
+                  ? "Select the college you teach at. An administrator will review it when approving your account."
+                  : "Select your college to upload resources later. Use your college email address so we can confirm your affiliation."}
               </p>
             </div>
 

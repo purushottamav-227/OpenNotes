@@ -111,6 +111,25 @@ const userSchema = new mongoose.Schema(
       required: true
     },
 
+    // Set when an admin (or a teacher, for students) blocks the account.
+    blockedAt: {
+      type: Date,
+      default: null
+    },
+
+    blockedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+
+    blockReason: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Block reason cannot exceed 500 characters."],
+      default: ""
+    },
+
     /*
      * Increment this counter to invalidate all previously issued JWTs.
      * Any JWT that carries a sessionVersion lower than the current value

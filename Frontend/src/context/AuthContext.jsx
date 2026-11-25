@@ -14,6 +14,7 @@ import {
 
 import {
   authApi,
+  profileApi,
   getAccessToken,
   setAccessToken,
   SESSION_EXPIRED_EVENT,
@@ -112,6 +113,13 @@ export function AuthProvider({ children }) {
     return result?.data || null;
   }, []);
 
+  // Saves name / college through the backend and updates the signed-in user.
+  const updateProfile = useCallback(async (changes) => {
+    const result = await profileApi.update(changes);
+    setUser(result?.data || null);
+    return result?.data || null;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       if (getAccessToken()) {
@@ -156,6 +164,7 @@ export function AuthProvider({ children }) {
       login,
       logout,
       refreshUser,
+      updateProfile,
     }),
     [
       user,
@@ -167,6 +176,7 @@ export function AuthProvider({ children }) {
       login,
       logout,
       refreshUser,
+      updateProfile,
     ]
   );
 

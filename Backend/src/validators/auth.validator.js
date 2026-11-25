@@ -23,9 +23,20 @@ export const registerSchema = z
     collegeId: z
       .string()
       .regex(/^[a-f\d]{24}$/i, "Enter a valid college ID.")
-      .optional()
+      .optional(),
+
+    // Public registration can only create students or teachers.
+    // Admin accounts can never be created here.
+    role: z.enum(["student", "teacher"]).optional()
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) => data.role !== "teacher" || Boolean(data.collegeId),
+    {
+      path: ["collegeId"],
+      message: "Select your college to register as a teacher."
+    }
+  );
 
 export const loginSchema = z
   .object({
@@ -42,3 +53,26 @@ export const loginSchema = z
       .max(128, "Password cannot exceed 128 characters.")
   })
   .strict();
+
+
+export const updateProfileSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "Name must contain at least 2 characters.")
+      .max(100, "Name cannot exceed 100 characters.")
+      .optional(),
+
+    // null removes the college (students only; enforced in the service).
+    collegeId: z
+      .union([
+        z.string().regex(/^[a-f\d]{24}$/i, "Enter a valid college ID."),
+        z.null()
+      ])
+      .optional()
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Provide at least one field to update."
+  });

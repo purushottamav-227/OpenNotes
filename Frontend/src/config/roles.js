@@ -18,11 +18,11 @@ export const roleLabels = {
   [ROLES.ADMIN]: "Administrator",
 };
 
-// Where each role lands after signing in. Students have no dashboard.
+// Where each role lands after signing in. No role has a dashboard.
 export const roleHome = {
   [ROLES.STUDENT]: "/home",
-  [ROLES.TEACHER]: "/teacher/dashboard",
-  [ROLES.ADMIN]: "/admin/dashboard",
+  [ROLES.TEACHER]: "/home",
+  [ROLES.ADMIN]: "/admin/resources",
 };
 
 export const guestUser = {
@@ -56,12 +56,14 @@ export const rolePermissions = {
     ...signedIn,
     uploadNotes: true,
     uploadPYQs: true,
+    manageStudents: true,
   },
   // Admins moderate; the backend does not allow admin uploads.
   [ROLES.ADMIN]: {
     ...signedIn,
     approveUploads: true,
     manageTeachers: true,
+    manageUsers: true,
   },
 };
 

@@ -10,6 +10,7 @@ import collegeRoutes from "./routes/college.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import resourceRoutes from "./routes/resource.routes.js";
 import academicStructureRoutes from "./routes/academicStructure.routes.js";
+import userManagementRoutes from "./routes/userManagement.routes.js";
 
 import {
   notFoundHandler,
@@ -38,6 +39,7 @@ app.use("/api/v1/colleges", collegeRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/academic-structures", academicStructureRoutes);
 app.use("/api/v1", resourceRoutes);
+app.use("/api/v1", userManagementRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

@@ -24,6 +24,10 @@ import {
   authenticateUser
 } from "../middleware/auth.middleware.js";
 
+import {
+  updateProfileController
+} from "../controllers/profile.controller.js";
+
 
 const router = Router();
 
@@ -87,6 +91,13 @@ router.get(
   "/me",
   authenticateUser,
   getCurrentUserController
+);
+
+// Update the signed-in user's own name (all roles) and college (students).
+router.patch(
+  "/me",
+  authenticateUser,
+  updateProfileController
 );
 
 

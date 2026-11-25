@@ -17,8 +17,7 @@ import Login from "./Pages/Auth/Login";
 import Signup from "./Pages/Auth/Signup";
 import VerifyEmail from "./Pages/Auth/VerifyEmail";
 
-import TeacherDashboard from "./Pages/Teacher/TeacherDashboard";
-import AdminDashboard from "./Pages/Admin/AdminDashboard";
+import ManageUsers from "./Pages/Admin/ManageUsers";
 import TeacherApprovals from "./Pages/Admin/TeacherApprovals";
 import ResourceApprovals from "./Pages/Admin/ResourceApprovals";
 
@@ -51,16 +50,13 @@ function App() {
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
-          <Route
-            path="/teacher/dashboard"
-            element={<TeacherDashboard />}
-          />
+          <Route path="/teacher/students" element={<ManageUsers />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/resources" element={<ResourceApprovals />} />
           <Route path="/admin/teachers" element={<TeacherApprovals />} />
+          <Route path="/admin/users" element={<ManageUsers />} />
         </Route>
       </Route>
 

@@ -7,9 +7,7 @@ import {
   LogOut,
   Menu,
   Moon,
-  Settings,
   Sun,
-  UserRound,
 } from "lucide-react";
 import { useTheme } from "../../context/useTheme";
 import useAuth from "../../context/useAuth";
@@ -65,11 +63,6 @@ function Topbar({ onMenuClick }) {
     return () => window.removeEventListener("openNotesProfileUpdated", updateProfile);
   }, []);
 
-  const goToProfile = () => {
-    setMenuOpen(false);
-    navigate("/profile");
-  };
-
   const handleLogout = () => {
     setMenuOpen(false);
     logout();
@@ -94,15 +87,17 @@ function Topbar({ onMenuClick }) {
       </div>
 
       <div className="topbar-actions">
-        <button
-          type="button"
-          className="topbar-icon-button"
-          aria-label="Notifications"
-          title="Notifications"
-          onClick={() => {}}
-        >
-          <Bell size={20} />
-        </button>
+        {isAuthenticated && (
+          <button
+            type="button"
+            className="topbar-icon-button"
+            aria-label="Notifications"
+            title="Notifications"
+            onClick={() => {}}
+          >
+            <Bell size={20} />
+          </button>
+        )}
 
         <button
           type="button"
@@ -160,28 +155,6 @@ function Topbar({ onMenuClick }) {
                   <small>{role}</small>
                 </div>
               </div>
-
-              <div className="topbar-menu-divider" />
-
-              <button
-                type="button"
-                className="topbar-menu-item"
-                role="menuitem"
-                onClick={goToProfile}
-              >
-                <UserRound size={17} />
-                My Profile & Workspace
-              </button>
-
-              <button
-                type="button"
-                className="topbar-menu-item"
-                role="menuitem"
-                onClick={goToProfile}
-              >
-                <Settings size={17} />
-                Account settings
-              </button>
 
               <div className="topbar-menu-divider" />
 

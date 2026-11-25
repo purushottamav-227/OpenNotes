@@ -39,7 +39,8 @@ export async function registerUser({
   name,
   email,
   password,
-  collegeId
+  collegeId,
+  role = "student"
 }) {
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -89,8 +90,9 @@ export async function registerUser({
       email: normalizedEmail,
       passwordHash,
 
-      // Public registration can only create students.
-      role: "student",
+      // Public registration creates students or teachers only.
+      // The controller validates the value; anything else becomes a student.
+      role: role === "teacher" ? "teacher" : "student",
 
       collegeId: selectedCollege?._id ?? null,
 
@@ -103,7 +105,9 @@ export async function registerUser({
       emailVerificationTokenHash: tokenHash,
       emailVerificationExpiresAt: expiresAt,
 
-      teacherApprovalStatus: "not_applicable",
+      // Teachers must be approved by an administrator before uploading.
+      teacherApprovalStatus:
+        role === "teacher" ? "pending" : "not_applicable",
 
       authProvider: "local",
       sessionVersion: 0
@@ -181,7 +185,7 @@ export async function loginUser({ email, password }) {
 
   if (!user.isActive) {
     throw createError(
-      "This account is inactive.",
+      "This account has been blocked. Please contact an administrator.",
       403
     );
   }

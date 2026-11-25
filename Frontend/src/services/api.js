@@ -186,6 +186,54 @@ export const authApi = {
     }),
 };
 
+// Update the signed-in user's own profile (name for everyone; college for
+// students). The backend decides the resulting affiliation status.
+export const profileApi = {
+  update: (data) =>
+    apiRequest("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+};
+
+// Account management: admins (students + teachers) and approved teachers
+// (students of their own college). The backend enforces every rule.
+export const userApi = {
+  list: (params = {}) => apiRequest(`/users${toQuery(params)}`),
+
+  block: (id, reason) =>
+    apiRequest(`/users/${encodeURIComponent(id)}/block`, {
+      method: "PATCH",
+      body: JSON.stringify(reason ? { reason } : {}),
+    }),
+
+  unblock: (id) =>
+    apiRequest(`/users/${encodeURIComponent(id)}/unblock`, {
+      method: "PATCH",
+      body: JSON.stringify({}),
+    }),
+
+  remove: (id) =>
+    apiRequest(`/users/${encodeURIComponent(id)}`, { method: "DELETE" }),
+};
+
+// Teacher applications (admin only).
+export const teacherApprovalApi = {
+  list: (params = {}) => apiRequest(`/admin/teachers${toQuery(params)}`),
+
+  approve: (id) =>
+    apiRequest(`/admin/teachers/${encodeURIComponent(id)}/approve`, {
+      method: "PATCH",
+      body: JSON.stringify({}),
+    }),
+
+  reject: (id, reason) =>
+    apiRequest(`/admin/teachers/${encodeURIComponent(id)}/reject`, {
+      method: "PATCH",
+      body: JSON.stringify({ reason }),
+    }),
+};
+
 export const collegeApi = {
   search: (q, limit = 10) =>
     apiRequest(`/colleges/search${toQuery({ q, limit })}`),

@@ -5,10 +5,10 @@ import {
   FileQuestion,
   Upload,
   FolderOpen,
-  LayoutDashboard,
   ClipboardCheck,
   UserRound,
   ShieldCheck,
+  Users,
   X,
   LogIn,
 } from "lucide-react";
@@ -22,24 +22,25 @@ const publicLinks = [
   { label: "Browse Notes", path: "/browse-notes", icon: BookOpen },
 ];
 
-// dashboardPath is optional: students have no dashboard.
-const memberLinks = (dashboardPath) => [
-  ...(dashboardPath
-    ? [{ label: "Dashboard", path: dashboardPath, icon: LayoutDashboard }]
-    : []),
+const memberLinks = [
   ...publicLinks,
   { label: "Browse PYQs", path: "/browse-pyqs", icon: FileQuestion },
   { label: "Upload", path: "/upload", icon: Upload },
   { label: "My Uploads", path: "/my-uploads", icon: FolderOpen },
-  { label: "Profile", path: "/profile", icon: UserRound },
 ];
 
+// No role has a dashboard. Each role opens straight into its own tools.
 const linksByRole = {
-  student: memberLinks(null),
-  teacher: memberLinks("/teacher/dashboard"),
-  // Admins moderate resources; they do not upload.
+  student: [...memberLinks, { label: "Profile", path: "/profile", icon: UserRound }],
+
+  teacher: [
+    ...memberLinks,
+    { label: "Students", path: "/teacher/students", icon: Users },
+    { label: "Profile", path: "/profile", icon: UserRound },
+  ],
+
+  // Admins moderate; they do not upload.
   admin: [
-    { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
     ...publicLinks,
     { label: "Browse PYQs", path: "/browse-pyqs", icon: FileQuestion },
     {
@@ -48,6 +49,7 @@ const linksByRole = {
       icon: ClipboardCheck,
     },
     { label: "Teacher Approvals", path: "/admin/teachers", icon: ShieldCheck },
+    { label: "Manage Accounts", path: "/admin/users", icon: Users },
     { label: "Profile", path: "/profile", icon: UserRound },
   ],
 };
